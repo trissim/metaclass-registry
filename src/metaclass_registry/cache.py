@@ -36,9 +36,33 @@ from pathlib import Path
 from typing import Dict, Any, Optional, Callable, TypeVar, Generic
 from dataclasses import dataclass
 
-from openhcs.core.xdg_paths import get_cache_file_path
-
 logger = logging.getLogger(__name__)
+
+
+def get_cache_file_path(cache_name: str) -> Path:
+    """
+    Get XDG-compliant cache file path.
+
+    Args:
+        cache_name: Name of the cache file
+
+    Returns:
+        Path to cache file in XDG cache directory
+    """
+    import os
+
+    # Use XDG_CACHE_HOME if set, otherwise default to ~/.cache
+    cache_home = os.environ.get('XDG_CACHE_HOME')
+    if not cache_home:
+        cache_home = Path.home() / '.cache'
+    else:
+        cache_home = Path(cache_home)
+
+    # Create metaclass-registry subdirectory
+    cache_dir = cache_home / 'metaclass-registry'
+    cache_dir.mkdir(parents=True, exist_ok=True)
+
+    return cache_dir / cache_name
 
 T = TypeVar('T')  # Generic type for cached items
 
