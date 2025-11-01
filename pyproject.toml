@@ -48,6 +48,14 @@ Issues = "https://github.com/trissim/metaclass-registry/issues"
 [tool.hatch.build.targets.wheel]
 packages = ["src/metaclass_registry"]
 
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "/README.md",
+    "/LICENSE",
+]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
