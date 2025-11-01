@@ -23,10 +23,10 @@ class TestGetCacheFilePath:
 
     def test_default_cache_path(self):
         """Test default cache path creation."""
-        with patch.dict('os.environ', {}, clear=True):
-            # Remove XDG_CACHE_HOME if set
-            if 'XDG_CACHE_HOME' in os.environ:
-                del os.environ['XDG_CACHE_HOME']
+        import os
+        # Only patch XDG_CACHE_HOME to ensure it's not set, without clearing all env vars
+        with patch.dict('os.environ', {'XDG_CACHE_HOME': ''}, clear=False):
+            del os.environ['XDG_CACHE_HOME']
 
             cache_path = get_cache_file_path('test.json')
             assert cache_path.name == 'test.json'
