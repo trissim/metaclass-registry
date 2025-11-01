@@ -7,10 +7,17 @@ registration with lazy discovery, caching, and zero boilerplate.
 
 __version__ = "0.1.0"
 
-from .core import AutoRegisterMeta, RegistryConfig, PRIMARY_KEY
-from .discovery import LazyDiscoveryDict, discover_registry_classes
+from .core import (
+    AutoRegisterMeta, 
+    RegistryConfig, 
+    PRIMARY_KEY,
+    LazyDiscoveryDict,
+    SecondaryRegistry,
+    SecondaryRegistryDict,
+    extract_key_from_handler_suffix
+)
+from .discovery import discover_registry_classes
 from .cache import RegistryCacheManager
-from .helpers import SecondaryRegistry, SecondaryRegistryDict, extract_key_from_handler_suffix
 from .exceptions import RegistryError, DiscoveryError, CacheError
 
 __all__ = [
