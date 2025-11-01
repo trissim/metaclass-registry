@@ -49,12 +49,13 @@ def get_cache_file_path(cache_name: str) -> Path:
     Returns:
         Path to cache file in XDG cache directory
     """
-    import os
-
+    from . import _home
+    
     # Use XDG_CACHE_HOME if set, otherwise default to ~/.cache
+    import os
     cache_home = os.environ.get('XDG_CACHE_HOME')
     if not cache_home:
-        cache_home = Path.home() / '.cache'
+        cache_home = Path(_home.get_home_dir()) / '.cache'
     else:
         cache_home = Path(cache_home)
 
