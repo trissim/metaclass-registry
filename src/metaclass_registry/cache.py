@@ -36,7 +36,16 @@ from pathlib import Path
 from typing import Dict, Any, Optional, Callable, TypeVar, Generic
 from dataclasses import dataclass
 
-from openhcs.core.xdg_paths import get_cache_file_path
+try:
+    from openhcs.core.xdg_paths import get_cache_file_path
+except ImportError:
+    # Fallback for when openhcs is not available
+    def get_cache_file_path(filename: str) -> Path:
+        """Fallback cache file path when openhcs is not available."""
+        from . import _home
+        cache_dir = Path(_home.get_home_dir()) / ".cache" / "metaclass_registry"
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        return cache_dir / filename
 
 logger = logging.getLogger(__name__)
 
