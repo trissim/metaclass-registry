@@ -8,17 +8,15 @@ registration with lazy discovery, caching, and zero boilerplate.
 __version__ = "0.1.0"
 
 from .core import (
-    AutoRegisterMeta,
-    RegistryConfig,
+    AutoRegisterMeta, 
+    RegistryConfig, 
     PRIMARY_KEY,
-    SecondaryRegistry,
     LazyDiscoveryDict,
+    SecondaryRegistry,
     SecondaryRegistryDict,
-    extract_key_from_handler_suffix,
-    extract_key_from_backend_suffix,
-    make_suffix_extractor,
+    extract_key_from_handler_suffix
 )
-from .discovery import discover_registry_classes, discover_registry_classes_recursive
+from .discovery import discover_registry_classes
 from .cache import RegistryCacheManager
 from .exceptions import RegistryError, DiscoveryError, CacheError
 
@@ -27,17 +25,15 @@ __all__ = [
     "AutoRegisterMeta",
     "RegistryConfig",
     "PRIMARY_KEY",
-    "SecondaryRegistry",
-    "LazyDiscoveryDict",
-    "SecondaryRegistryDict",
-    "extract_key_from_handler_suffix",
-    "extract_key_from_backend_suffix",
-    "make_suffix_extractor",
     # Discovery
+    "LazyDiscoveryDict",
     "discover_registry_classes",
-    "discover_registry_classes_recursive",
     # Cache
     "RegistryCacheManager",
+    # Helpers
+    "SecondaryRegistry",
+    "SecondaryRegistryDict",
+    "extract_key_from_handler_suffix",
     # Exceptions
     "RegistryError",
     "DiscoveryError",

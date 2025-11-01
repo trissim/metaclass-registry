@@ -162,13 +162,11 @@ class LazyDiscoveryDict(dict):
             try:
                 cache_utils = _get_cache_manager()
 
-                # Get version getter (try to get version from discovery package)
+                # Get version getter (use openhcs version)
                 def get_version():
                     try:
-                        # Try to get version from the root package
-                        root_package = config.discovery_package.split('.')[0]
-                        mod = __import__(root_package)
-                        return getattr(mod, '__version__', 'unknown')
+                        import openhcs
+                        return openhcs.__version__
                     except:
                         return "unknown"
 
@@ -498,7 +496,7 @@ class AutoRegisterMeta(ABCMeta):
 
         # Handle missing key
         if key is None:
-            return mcs._handle_missing_key(name, registry_config, new_class)
+            return mcs._handle_missing_key(name, registry_config)
 
         # Register in primary registry
         mcs._register_class(new_class, key, registry_config)
@@ -528,12 +526,12 @@ class AutoRegisterMeta(ABCMeta):
         return None
 
     @staticmethod
-    def _handle_missing_key(name: str, config: RegistryConfig, new_class: Type) -> Type:
+    def _handle_missing_key(name: str, config: RegistryConfig) -> Type:
         """Handle case where no registration key is available."""
         if config.skip_if_no_key:
             if config.log_registration:
                 logger.debug(f"Skipping registration for {name} - no {config.key_attribute}")
-            return new_class  # Return the class, just don't register it
+            return None  # Will be returned from __new__
         else:
             raise ValueError(
                 f"Class {name} must have {config.key_attribute} attribute "
