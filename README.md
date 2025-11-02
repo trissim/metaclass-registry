@@ -3,8 +3,10 @@
 **Zero-boilerplate metaclass-driven plugin registry system with lazy discovery and caching**
 
 [![PyPI version](https://badge.fury.io/py/metaclass-registry.svg)](https://badge.fury.io/py/metaclass-registry)
+[![Documentation Status](https://readthedocs.org/projects/metaclass-registry/badge/?version=latest)](https://metaclass-registry.readthedocs.io/en/latest/?badge=latest)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Coverage](https://raw.githubusercontent.com/trissim/metaclass-registry/main/.github/badges/coverage.svg)](https://trissim.github.io/metaclass-registry/coverage/)
 
 ## Features
 
