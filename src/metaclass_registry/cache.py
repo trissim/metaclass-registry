@@ -31,10 +31,13 @@ Usage:
 
 import json
 import logging
+import os
+import tempfile
 import time
-from pathlib import Path
-from typing import Dict, Any, Optional, Callable, TypeVar, Generic
+from contextlib import suppress
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Callable, Dict, Generic, Optional, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +55,6 @@ def get_cache_file_path(cache_name: str) -> Path:
     from . import _home
     
     # Use XDG_CACHE_HOME if set, otherwise default to ~/.cache
-    import os
     cache_home = os.environ.get('XDG_CACHE_HOME')
     if not cache_home:
         cache_home = Path(_home.get_home_dir()) / '.cache'
@@ -204,14 +206,29 @@ class RegistryCacheManager(Generic[T]):
             except Exception as e:
                 logger.warning(f"Failed to serialize {key} for cache: {e}")
         
-        # Save to disk
+        # Serialize beside the destination, then atomically replace it so
+        # readers observe either the previous or the next complete document.
+        temporary_path: Optional[Path] = None
         try:
             self._cache_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(self._cache_path, 'w') as f:
-                json.dump(cache_data, f, indent=2)
+            with tempfile.NamedTemporaryFile(
+                mode='w',
+                encoding='utf-8',
+                dir=self._cache_path.parent,
+                prefix=f'.{self._cache_path.name}.',
+                suffix='.tmp',
+                delete=False,
+            ) as cache_file:
+                temporary_path = Path(cache_file.name)
+                json.dump(cache_data, cache_file, indent=2)
+            os.replace(temporary_path, self._cache_path)
             logger.info(f"💾 Saved {len(items)} items to {self.cache_name} cache")
         except Exception as e:
             logger.warning(f"Failed to save {self.cache_name} cache: {e}")
+        finally:
+            if temporary_path is not None:
+                with suppress(OSError):
+                    temporary_path.unlink(missing_ok=True)
     
     def clear_cache(self) -> None:
         """Clear the cache file."""
@@ -307,4 +324,3 @@ def get_package_file_mtimes(package_path: str) -> Dict[str, float]:
     except Exception as e:
         logger.warning(f"Failed to get mtimes for {package_path}: {e}")
         return {}
-

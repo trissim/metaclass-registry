@@ -1,20 +1,18 @@
 """Tests for metaclass_registry.cache module."""
 
 import json
-import tempfile
+import os
+import threading
 import time
-from pathlib import Path
-from unittest.mock import Mock, patch
-
-import pytest
+from unittest.mock import patch
 
 from metaclass_registry.cache import (
     CacheConfig,
     RegistryCacheManager,
-    get_cache_file_path,
-    serialize_plugin_class,
     deserialize_plugin_class,
+    get_cache_file_path,
     get_package_file_mtimes,
+    serialize_plugin_class,
 )
 
 
@@ -23,7 +21,6 @@ class TestGetCacheFilePath:
 
     def test_default_cache_path(self):
         """Test default cache path creation."""
-        import os
         # Only patch XDG_CACHE_HOME to ensure it's not set, without clearing all env vars
         with patch.dict('os.environ', {'XDG_CACHE_HOME': ''}, clear=False):
             del os.environ['XDG_CACHE_HOME']
@@ -35,7 +32,6 @@ class TestGetCacheFilePath:
 
     def test_xdg_cache_home(self, tmp_path):
         """Test using XDG_CACHE_HOME environment variable."""
-        import os
         xdg_cache = tmp_path / 'cache'
         xdg_cache.mkdir()
 
@@ -46,7 +42,6 @@ class TestGetCacheFilePath:
 
     def test_cache_dir_created(self, tmp_path):
         """Test that cache directory is created if it doesn't exist."""
-        import os
         xdg_cache = tmp_path / 'new_cache'
 
         with patch.dict('os.environ', {'XDG_CACHE_HOME': str(xdg_cache)}):
@@ -123,8 +118,8 @@ class TestGetPackageFileMtimes:
 
     def test_get_mtimes_for_package(self, tmp_path):
         """Test getting modification times for package files."""
-        import sys
         import importlib
+        import sys
 
         # Create a test package
         pkg_dir = tmp_path / 'test_mtime_pkg'
@@ -164,7 +159,6 @@ class TestRegistryCacheManager:
 
     def test_init(self, tmp_path):
         """Test RegistryCacheManager initialization."""
-        import os
 
         with patch.dict('os.environ', {'XDG_CACHE_HOME': str(tmp_path)}):
             manager = RegistryCacheManager(
@@ -179,7 +173,6 @@ class TestRegistryCacheManager:
 
     def test_save_and_load_cache(self, tmp_path):
         """Test saving and loading cache."""
-        import os
 
         with patch.dict('os.environ', {'XDG_CACHE_HOME': str(tmp_path)}):
             manager = RegistryCacheManager(
@@ -197,9 +190,62 @@ class TestRegistryCacheManager:
             loaded = manager.load_cache()
             assert loaded == items
 
+    def test_read_during_save_observes_complete_snapshot(self, tmp_path):
+        """Readers see the previous snapshot until its replacement is complete."""
+        with patch.dict('os.environ', {'XDG_CACHE_HOME': str(tmp_path)}):
+            manager = RegistryCacheManager(
+                cache_name='test_atomic_save',
+                version_getter=lambda: '1.0',
+                serializer=lambda x: {'value': x},
+                deserializer=lambda x: x['value'],
+            )
+            previous_items = {'key': 'previous'}
+            next_items = {'key': 'next'}
+            manager.save_cache(previous_items)
+
+            dump_started = threading.Event()
+            allow_dump = threading.Event()
+            original_dump = json.dump
+
+            def blocked_dump(cache_data, cache_file, **kwargs):
+                dump_started.set()
+                allow_dump.wait(timeout=5)
+                return original_dump(cache_data, cache_file, **kwargs)
+
+            with patch('metaclass_registry.cache.json.dump', side_effect=blocked_dump):
+                writer = threading.Thread(target=manager.save_cache, args=(next_items,))
+                writer.start()
+                assert dump_started.wait(timeout=5)
+                try:
+                    assert manager.load_cache() == previous_items
+                finally:
+                    allow_dump.set()
+                    writer.join(timeout=5)
+
+            assert not writer.is_alive()
+            assert manager.load_cache() == next_items
+            assert not tuple(manager._cache_path.parent.glob('*.tmp'))
+
+    def test_failed_save_preserves_previous_snapshot(self, tmp_path):
+        """A failed replacement leaves the last complete cache available."""
+        with patch.dict('os.environ', {'XDG_CACHE_HOME': str(tmp_path)}):
+            manager = RegistryCacheManager(
+                cache_name='test_failed_atomic_save',
+                version_getter=lambda: '1.0',
+                serializer=lambda x: {'value': x},
+                deserializer=lambda x: x['value'],
+            )
+            previous_items = {'key': 'previous'}
+            manager.save_cache(previous_items)
+
+            with patch('metaclass_registry.cache.json.dump', side_effect=OSError('write failed')):
+                manager.save_cache({'key': 'next'})
+
+            assert manager.load_cache() == previous_items
+            assert not tuple(manager._cache_path.parent.glob('*.tmp'))
+
     def test_cache_version_mismatch(self, tmp_path):
         """Test that cache is invalidated on version change."""
-        import os
 
         version = ['1.0']
 
@@ -224,7 +270,6 @@ class TestRegistryCacheManager:
 
     def test_cache_age_invalidation(self, tmp_path):
         """Test that cache is invalidated when too old."""
-        import os
 
         with patch.dict('os.environ', {'XDG_CACHE_HOME': str(tmp_path)}):
             config = CacheConfig(max_age_days=7)
@@ -257,7 +302,6 @@ class TestRegistryCacheManager:
 
     def test_cache_mtime_validation(self, tmp_path):
         """Test cache invalidation based on file mtimes."""
-        import os
 
         test_file = tmp_path / 'test_file.py'
         test_file.write_text('# original')
@@ -291,7 +335,6 @@ class TestRegistryCacheManager:
 
     def test_clear_cache(self, tmp_path):
         """Test clearing the cache."""
-        import os
 
         with patch.dict('os.environ', {'XDG_CACHE_HOME': str(tmp_path)}):
             manager = RegistryCacheManager(
@@ -312,7 +355,6 @@ class TestRegistryCacheManager:
 
     def test_corrupt_cache_handling(self, tmp_path):
         """Test handling of corrupted cache file."""
-        import os
 
         with patch.dict('os.environ', {'XDG_CACHE_HOME': str(tmp_path)}):
             manager = RegistryCacheManager(
@@ -333,7 +375,6 @@ class TestRegistryCacheManager:
 
     def test_serialization_error_handling(self, tmp_path):
         """Test handling of serialization errors."""
-        import os
 
         def bad_serializer(x):
             raise ValueError("Serialization failed")
@@ -359,7 +400,6 @@ class TestRegistryCacheManager:
 
     def test_deserialization_error_handling(self, tmp_path):
         """Test handling of deserialization errors."""
-        import os
 
         def bad_deserializer(x):
             raise ValueError("Deserialization failed")
@@ -379,7 +419,3 @@ class TestRegistryCacheManager:
             # Load should return None on deserialization error
             loaded = manager.load_cache()
             assert loaded is None
-
-
-# Import os for tests that need it
-import os
